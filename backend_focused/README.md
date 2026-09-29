@@ -1,205 +1,137 @@
-# Fleet Maintenance API Take-home Challenge
+# Fleet Maintenance - take-home submission
 
-Build a REST API for managing a fleet of vehicles and their maintenance history.
+A Django REST Framework API for managing a fleet of vehicles, the offices they
+are assigned to, the mechanics who service them and their maintenance history,
+plus a Next.js front end over it.
 
-Use Python, Django and Django REST Framework.
+The original brief is preserved as [Require.md](Require.md).
 
-The API does not need authentication or a frontend.
+| | |
+| --- | --- |
+| **Backend** | Python 3.13, Django 5.2, DRF 3.17, SQLite - no dependencies beyond the scaffold's |
+| **Frontend** | Next.js 16, React 19, MUI 7 (+ X Date Pickers, Icons), TanStack Query 5, axios, dayjs |
+| **Tests** | 118, all passing |
+| **Detailed backend notes** | [`backend/README.md`](backend/README.md) - API reference, performance analysis, tradeoffs |
 
-## Domain
+All nine required endpoint groups are implemented, plus a front end covering the
+CRUD endpoints, vehicle search, and *vehicles needing maintenance* as the chosen
+extra.
 
-A company owns vehicles that are assigned to offices around the country.
-Vehicles periodically receive maintenance services performed by mechanics.
-A vehicle may have many maintenance records.
-A mechanic may service many vehicles.
-Each office has many vehicles.
+---
 
-Offices
+## Running it
 
-An office has:
-* name
-* city
+Two terminals. The backend first - the front end is a pure client of it.
 
-Vehicles
-
-A vehicle has:
-* VIN (Vehicle Identification Number)
-* license plate
-* make
-* model
-* year
-* office
-* active flag
-
-A VIN must uniquely identify a vehicle.
-A license plate cannot be shared by two active vehicles.
-
-Provide CRUD endpoints.
-
-A mechanic has:
-
-name
-certification number
-active flag
-
-Provide CRUD endpoints.
-
-Maintenance Records
-
-A maintenance record contains:
-
-vehicle
-mechanic
-maintenance date
-maintenance type
-cost
-notes
-
-Provide CRUD endpoints.
-
-## API endpoints
-
-1. CRUD endpoints for offices, vehicles, mechanics and maintenance records.
-
-2. Office summary
-
-It should return every office together with:
-* number of active vehicles
-* total maintenance cost during the last 12 months
-* date of the most recent maintenance performed on any vehicle in that office
-
-Example:
-[
-    {
-        "name": "New York",
-        "city": "New York",
-        "active_vehicle_count": 42,
-        "maintenance_cost_last_year": 81250.50,
-        "last_maintenance": "2025-02-18"
-    }
-]
-
-3. Vehicle search
-
-It should support optional filtering by any combination of:
-
-* office
-* active/inactive
-* make
-* model
-* maintenance performed between two dates
-* mechanic certification number
-
-4. Vehicle details
-
-Return vehicle details together with:
-* office information
-* complete maintenance history
-* mechanic information for each maintenance record
-
-The endpoint should perform well when a vehicle has hundreds of maintenance records.
-
-5. Vehicle maintenance history
-
-Provide an endpoint that returns the maintenance history for a single vehicle ordered from newest to oldest.
-
-6. Assign vehicle
-
-Provide an endpoint that moves a vehicle from one office to another.
-
-The endpoint should record only the new office assignment.
-
-7. Mechanic workload
-
-It should return:
-* mechanic name
-* number of maintenance records completed during the current year
-* total maintenance cost of work performed during the current year
-
-Order mechanics from busiest to least busy.
-
-8. Vehicles needing maintenance
-
-It should return all active vehicles that satisfy either of the following:
-* have never received maintenance
-* last maintenance was more than 365 days ago
-
-Order by oldest maintenance first.
-
-9. Duplicate vehicle check
-
-Given VIN and license plate, it should return whether another conflicting vehicle already exists and identifies the conflicting fields.
-
-Example:
-
-{
-    "conflicts": [
-        "vin",
-        "license_plate"
-    ]
-}
-
-## Front-end
-
-If you know React, implement a front-end that uses the CRUD endpoints, the vehicle search one 
-and another endpoint you choose.
-
-The Next.js 16 + React 19 app in `frontend/` is pre-wired for this challenge. Material UI handles
-layout, axios powers HTTP requests, and `@tanstack/react-query` is ready for data fetching. 
-
-## Error Handling
-
-Return appropriate HTTP status codes for invalid requests.
-Validation errors should include meaningful messages.
-
-## Project Structure
-
-- `backend/`: Empty Django project.
-- `frontend/`: Empty Next.js app.
-
-## Getting Started
-
-### Backend
+### 1. Backend
 
 ```bash
 cd backend
-python -m venv .venv && source .venv/bin/activate
+python -m venv .venv
+source .venv/bin/activate          # Windows: .venv\Scripts\activate
 pip install -r requirements.txt
 python manage.py migrate
+python manage.py seed_fleet        # dummy data - see below
 python manage.py runserver 0.0.0.0:8000
 ```
 
-### Frontend
+API at `http://localhost:8000/api/`, browsable in a browser, JSON for clients.
+Django admin at `http://localhost:8000/admin/` (`createsuperuser` to use it).
+
+### 2. Frontend
 
 ```bash
 cd frontend
 npm install
-# NEXT_PUBLIC_API_BASE_URL defaults to http://localhost:8000/api
-npm run dev
+npm run dev                        # NEXT_PUBLIC_API_BASE_URL defaults to http://localhost:8000/api
 ```
 
-Visit `http://localhost:3000` in your web browser to run it.
+Then open `http://localhost:3000`.
 
-## Deliverables
+> **If `npm run dev` exits immediately with no error message**, use
+> `npm run dev:webpack` (and `npm run build:webpack`). Next 16 defaults to
+> Turbopack, which terminates silently on some Windows setups; the webpack
+> builder is equivalent for this app. Both script variants are in
+> `package.json`.
 
-source code
-database migrations
-a Django management command that fills the database with dummy data to make manually testing your app easier (suggestion: use the faker Python library)
-README describing:
-  how to run the project
-  how to run tests
-  assumptions made
-  chosen tradeoffs  
-if front-end was implemented, record and share a brief video (max 2 minutes) demonstrating the frontend working end-to-end with the backend.
+### Running the tests
 
-## Evaluation Criteria
+```bash
+cd backend
+python manage.py test fleet                          # all 92
+python manage.py test fleet.tests.test_performance   # the query-count tests
+```
 
-- **Backend (50%)** – API design, database queries performance, appropriate use of Django and Django Rest Framework
-- **Frontend (25%)** – UX clarity, filter UX tied to query params, state/data management, handling
-  of loading/empty/error cases, and overall polish.
-- **Code Quality (15%)** – Code structure, testing where it adds value, documentation/readability, naming
-- **Product Thinking (10%)** – Workflow clarity, assumptions noted, and thoughtful UX details (if front-end is implemented)
+```bash
+cd frontend
+npm run lint          # eslint + prettier
+npx tsc --noEmit      # type check
+```
 
-## Optional Bonus
+### Seeding dummy data
 
-Authentication using JWT is not required but welcome if time allows.
+```bash
+cd backend
+python manage.py seed_fleet --flush
+```
+
+About 90 vehicles and 1,500 maintenance records via Faker, reproducible with
+`--seed`, sizes adjustable with `--offices`, `--mechanics`, `--vehicles`.
+
+It also deliberately plants the cases the reporting endpoints are built around,
+so they can be exercised by hand straight away - a vehicle with **600**
+maintenance records, vehicles never serviced, vehicles overdue by 400+ days, a
+license plate legally shared between a retired and an active vehicle, and
+records sitting on both sides of the 365-day and calendar-year boundaries. The
+command prints what it planted.
+
+---
+
+## What's where
+
+```
+backend/
+  fleet/
+    models.py       4 models, constraints, indexes
+    queries.py      queryset builders for search and the three reports
+    serializers.py  shaping and validation
+    views.py        thin viewsets, per-action querysets
+    exceptions.py   ProtectedError -> 409
+    management/commands/seed_fleet.py
+    tests/          models, CRUD, search, reports, query counts
+frontend/
+  app/              vehicles (/), vehicles/[id], needing-maintenance, offices, mechanics
+  components/       filters, sortable tables, dialogs, shared query states
+  lib/              typed API client, query keys, URL-bound filter hook
+```
+
+Query construction lives in `queries.py` rather than in the views, so the query
+shape - the part that has to stay fast - is in one place and testable on its own.
+
+---
+
+## Assumptions
+
+The brief leaves some things open. These are the readings taken.
+
+- **A plate is unique only among active vehicles.** Plates are reissued once a
+  vehicle retires. This applies to the incoming record too, so a vehicle saved
+  as retired may take a plate an active one still holds.
+- **An office is unique by name within a city**, compared case-insensitively.
+  The same name in two cities is fine. Twice in one city would split that
+  office's vehicles across two rows in every report.
+- **"Record only the new office assignment"** means update the vehicle's office
+  and change nothing else. No assignment history is kept.
+- **"Last 12 months" is a rolling 365 days; "the current year" is the calendar
+  year to date.** The brief words the two differently, so they behave
+  differently.
+- **The date and mechanic filters intersect on a single record.** Using both
+  means "serviced by that mechanic within that window", not two independent
+  conditions.
+- **Certification numbers are unique**, because vehicle search filters on the
+  number alone.
+- **Maintenance dates cannot be in the future.** A record documents completed
+  work. Today is accepted.
+- **Deleting an office or mechanic is refused while records reference it** (409).
+  Deleting a vehicle does remove its history. Both carry an active flag, which
+  is the intended way to retire one.

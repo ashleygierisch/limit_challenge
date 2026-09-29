@@ -1,0 +1,19 @@
+# Virtualenv
+.venv/
+venv/
+
+# Python bytecode
+__pycache__/
+*.py[cod]
+
+# Local development database (recreate with migrate + seed_fleet)
+db.sqlite3
+db.sqlite3-journal
+
+# Local environment overrides
+.env
+
+# Editor / OS noise
+.DS_Store
+.idea/
+.vscode/
