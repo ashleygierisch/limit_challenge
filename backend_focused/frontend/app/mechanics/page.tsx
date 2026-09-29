@@ -51,6 +51,7 @@ import {
 } from '@/lib/api';
 import { formatCurrency } from '@/lib/format';
 import { queryKeys } from '@/lib/query-keys';
+import { useDiscardGuard, useIsDirty } from '@/lib/use-discard-guard';
 import { useClientSort, type SortAccessors } from '@/lib/sorting';
 import type { Mechanic, MechanicWorkload } from '@/lib/types';
 
@@ -268,6 +269,10 @@ function MechanicFormDialog({
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
   const [message, setMessage] = useState<string | null>(null);
 
+  // An accidental backdrop click or Escape must not discard a half-filled form.
+  const dirty = useIsDirty(form);
+  const guard = useDiscardGuard(dirty, onClose);
+
   const save = useMutation({
     mutationFn: () =>
       isEdit && mechanic ? updateMechanic(mechanic.id, form) : createMechanic(form),
@@ -283,57 +288,72 @@ function MechanicFormDialog({
   });
 
   return (
-    <Dialog open={open} onClose={save.isPending ? undefined : onClose} maxWidth="xs" fullWidth>
-      <DialogTitle>{isEdit ? 'Edit mechanic' : 'Add mechanic'}</DialogTitle>
-      <DialogContent>
-        <Stack spacing={2} sx={{ mt: 1 }}>
-          {message ? <Alert severity="error">{message}</Alert> : null}
-          <TextField
-            label="Name"
-            value={form.name}
-            onChange={(event) => setForm((f) => ({ ...f, name: event.target.value }))}
-            error={Boolean(fieldErrors.name)}
-            helperText={fieldErrors.name?.join(' ') ?? ' '}
-            fullWidth
-            required
-          />
-          <TextField
-            label="Certification number"
-            value={form.certification_number}
-            onChange={(event) =>
-              setForm((f) => ({ ...f, certification_number: event.target.value }))
-            }
-            error={Boolean(fieldErrors.certification_number)}
-            helperText={fieldErrors.certification_number?.join(' ') ?? 'Must be unique.'}
-            fullWidth
-            required
-          />
-          <FormControlLabel
-            control={
-              <Switch
-                checked={form.active}
-                onChange={(event) => setForm((f) => ({ ...f, active: event.target.checked }))}
-              />
-            }
-            label={form.active ? 'Active' : 'Inactive'}
-          />
-        </Stack>
-      </DialogContent>
-      <DialogActions>
-        <Button onClick={onClose} disabled={save.isPending}>
-          Cancel
-        </Button>
-        <Button
-          variant="contained"
-          onClick={() => {
-            setMessage(null);
-            save.mutate();
-          }}
-          disabled={save.isPending || !form.name.trim() || !form.certification_number.trim()}
-        >
-          {save.isPending ? 'Saving…' : 'Save'}
-        </Button>
-      </DialogActions>
-    </Dialog>
+    <>
+      <Dialog
+        open={open}
+        onClose={save.isPending ? undefined : guard.handleDialogClose}
+        maxWidth="xs"
+        fullWidth
+      >
+        <DialogTitle>{isEdit ? 'Edit mechanic' : 'Add mechanic'}</DialogTitle>
+        <DialogContent>
+          <Stack spacing={2} sx={{ mt: 1 }}>
+            {message ? <Alert severity="error">{message}</Alert> : null}
+            <TextField
+              label="Name"
+              value={form.name}
+              onChange={(event) => setForm((f) => ({ ...f, name: event.target.value }))}
+              error={Boolean(fieldErrors.name)}
+              helperText={fieldErrors.name?.join(' ') ?? ' '}
+              fullWidth
+              required
+            />
+            <TextField
+              label="Certification number"
+              value={form.certification_number}
+              onChange={(event) =>
+                setForm((f) => ({ ...f, certification_number: event.target.value }))
+              }
+              error={Boolean(fieldErrors.certification_number)}
+              helperText={fieldErrors.certification_number?.join(' ') ?? 'Must be unique.'}
+              fullWidth
+              required
+            />
+            <FormControlLabel
+              control={
+                <Switch
+                  checked={form.active}
+                  onChange={(event) => setForm((f) => ({ ...f, active: event.target.checked }))}
+                />
+              }
+              label={form.active ? 'Active' : 'Inactive'}
+            />
+          </Stack>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={guard.requestClose} disabled={save.isPending}>
+            Cancel
+          </Button>
+          <Button
+            variant="contained"
+            onClick={() => {
+              setMessage(null);
+              save.mutate();
+            }}
+            disabled={save.isPending || !form.name.trim() || !form.certification_number.trim()}
+          >
+            {save.isPending ? 'Saving…' : 'Save'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+      <ConfirmDialog
+        open={guard.confirming}
+        title="Discard changes?"
+        message="This form has unsaved changes. Closing it will lose them."
+        confirmLabel="Discard"
+        onConfirm={guard.confirmDiscard}
+        onClose={guard.keepEditing}
+      />
+    </>
   );
 }

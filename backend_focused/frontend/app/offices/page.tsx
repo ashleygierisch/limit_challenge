@@ -51,6 +51,7 @@ import {
 } from '@/lib/api';
 import { formatCurrency, formatDate } from '@/lib/format';
 import { queryKeys } from '@/lib/query-keys';
+import { useDiscardGuard, useIsDirty } from '@/lib/use-discard-guard';
 import { useClientSort, type SortAccessors } from '@/lib/sorting';
 import type { OfficeSummary } from '@/lib/types';
 
@@ -314,6 +315,10 @@ function OfficeFormDialog({
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
   const [message, setMessage] = useState<string | null>(null);
 
+  // An accidental backdrop click or Escape must not discard a half-filled form.
+  const dirty = useIsDirty(form);
+  const guard = useDiscardGuard(dirty, onClose);
+
   const save = useMutation({
     mutationFn: () => (isEdit && office ? updateOffice(office.id, form) : createOffice(form)),
     onSuccess: () => {
@@ -328,46 +333,61 @@ function OfficeFormDialog({
   });
 
   return (
-    <Dialog open={open} onClose={save.isPending ? undefined : onClose} maxWidth="xs" fullWidth>
-      <DialogTitle>{isEdit ? 'Edit office' : 'Add office'}</DialogTitle>
-      <DialogContent>
-        <Stack spacing={2} sx={{ mt: 1 }}>
-          {message ? <Alert severity="error">{message}</Alert> : null}
-          <TextField
-            label="Name"
-            value={form.name}
-            onChange={(event) => setForm((f) => ({ ...f, name: event.target.value }))}
-            error={Boolean(fieldErrors.name)}
-            helperText={fieldErrors.name?.join(' ') ?? ' '}
-            fullWidth
-            required
-          />
-          <TextField
-            label="City"
-            value={form.city}
-            onChange={(event) => setForm((f) => ({ ...f, city: event.target.value }))}
-            error={Boolean(fieldErrors.city)}
-            helperText={fieldErrors.city?.join(' ') ?? ' '}
-            fullWidth
-            required
-          />
-        </Stack>
-      </DialogContent>
-      <DialogActions>
-        <Button onClick={onClose} disabled={save.isPending}>
-          Cancel
-        </Button>
-        <Button
-          variant="contained"
-          onClick={() => {
-            setMessage(null);
-            save.mutate();
-          }}
-          disabled={save.isPending || !form.name.trim() || !form.city.trim()}
-        >
-          {save.isPending ? 'Saving…' : 'Save'}
-        </Button>
-      </DialogActions>
-    </Dialog>
+    <>
+      <Dialog
+        open={open}
+        onClose={save.isPending ? undefined : guard.handleDialogClose}
+        maxWidth="xs"
+        fullWidth
+      >
+        <DialogTitle>{isEdit ? 'Edit office' : 'Add office'}</DialogTitle>
+        <DialogContent>
+          <Stack spacing={2} sx={{ mt: 1 }}>
+            {message ? <Alert severity="error">{message}</Alert> : null}
+            <TextField
+              label="Name"
+              value={form.name}
+              onChange={(event) => setForm((f) => ({ ...f, name: event.target.value }))}
+              error={Boolean(fieldErrors.name)}
+              helperText={fieldErrors.name?.join(' ') ?? ' '}
+              fullWidth
+              required
+            />
+            <TextField
+              label="City"
+              value={form.city}
+              onChange={(event) => setForm((f) => ({ ...f, city: event.target.value }))}
+              error={Boolean(fieldErrors.city)}
+              helperText={fieldErrors.city?.join(' ') ?? ' '}
+              fullWidth
+              required
+            />
+          </Stack>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={guard.requestClose} disabled={save.isPending}>
+            Cancel
+          </Button>
+          <Button
+            variant="contained"
+            onClick={() => {
+              setMessage(null);
+              save.mutate();
+            }}
+            disabled={save.isPending || !form.name.trim() || !form.city.trim()}
+          >
+            {save.isPending ? 'Saving…' : 'Save'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+      <ConfirmDialog
+        open={guard.confirming}
+        title="Discard changes?"
+        message="This form has unsaved changes. Closing it will lose them."
+        confirmLabel="Discard"
+        onConfirm={guard.confirmDiscard}
+        onClose={guard.keepEditing}
+      />
+    </>
   );
 }

@@ -38,6 +38,8 @@ import {
 } from '@/lib/api';
 import { invalidateFleetData, queryKeys } from '@/lib/query-keys';
 import { withCurrentValue } from '@/lib/select-options';
+import { useDiscardGuard, useIsDirty } from '@/lib/use-discard-guard';
+import { ConfirmDialog } from './ConfirmDialog';
 import { useDebounced } from '@/lib/use-debounced';
 import type { Office, Vehicle, VehicleWriteInput } from '@/lib/types';
 
@@ -91,6 +93,10 @@ export function VehicleFormDialog({ open, vehicle, offices, onClose }: VehicleFo
   const [form, setForm] = useState<FormState>(() => toFormState(vehicle, offices));
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
   const [message, setMessage] = useState<string | null>(null);
+
+  // An accidental backdrop click or Escape must not discard a half-filled form.
+  const dirty = useIsDirty(form);
+  const guard = useDiscardGuard(dirty, onClose);
 
   const set = <K extends keyof FormState>(key: K, value: FormState[K]) => {
     setForm((current) => ({ ...current, [key]: value }));
@@ -184,117 +190,132 @@ export function VehicleFormDialog({ open, vehicle, offices, onClose }: VehicleFo
   };
 
   return (
-    <Dialog open={open} onClose={save.isPending ? undefined : onClose} maxWidth="sm" fullWidth>
-      <DialogTitle>{isEdit ? 'Edit vehicle' : 'Add vehicle'}</DialogTitle>
-      <DialogContent>
-        <Stack spacing={2} sx={{ mt: 1 }}>
-          {message ? <Alert severity="error">{message}</Alert> : null}
+    <>
+      <Dialog
+        open={open}
+        onClose={save.isPending ? undefined : guard.handleDialogClose}
+        maxWidth="sm"
+        fullWidth
+      >
+        <DialogTitle>{isEdit ? 'Edit vehicle' : 'Add vehicle'}</DialogTitle>
+        <DialogContent>
+          <Stack spacing={2} sx={{ mt: 1 }}>
+            {message ? <Alert severity="error">{message}</Alert> : null}
 
-          <TextField
-            label="VIN"
-            value={form.vin}
-            onChange={(event) => set('vin', event.target.value)}
-            error={Boolean(fieldErrors.vin) || vinConflict}
-            helperText={
-              vinConflict
-                ? 'A vehicle with this VIN already exists.'
-                : helper('vin', 'Stored uppercase; must be unique.')
-            }
-            fullWidth
-            required
-          />
-
-          <TextField
-            label="License plate"
-            value={form.license_plate}
-            onChange={(event) => set('license_plate', event.target.value)}
-            error={Boolean(fieldErrors.license_plate) || plateConflict}
-            helperText={
-              plateConflict
-                ? 'An active vehicle already uses this plate.'
-                : helper(
-                    'license_plate',
-                    'Only one active vehicle may hold a plate; retired plates can be reused.',
-                  )
-            }
-            fullWidth
-            required
-          />
-
-          <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
             <TextField
-              label="Make"
-              value={form.make}
-              onChange={(event) => set('make', event.target.value)}
-              error={Boolean(fieldErrors.make)}
-              helperText={helper('make')}
+              label="VIN"
+              value={form.vin}
+              onChange={(event) => set('vin', event.target.value)}
+              error={Boolean(fieldErrors.vin) || vinConflict}
+              helperText={
+                vinConflict
+                  ? 'A vehicle with this VIN already exists.'
+                  : helper('vin', 'Stored uppercase; must be unique.')
+              }
               fullWidth
               required
             />
-            <TextField
-              label="Model"
-              value={form.model}
-              onChange={(event) => set('model', event.target.value)}
-              error={Boolean(fieldErrors.model)}
-              helperText={helper('model')}
-              fullWidth
-              required
-            />
-          </Stack>
 
-          <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
             <TextField
-              label="Year"
-              type="number"
-              value={form.year}
-              onChange={(event) => set('year', event.target.value)}
-              error={Boolean(fieldErrors.year)}
-              helperText={helper('year')}
-              slotProps={{ htmlInput: { min: 1900, max: new Date().getFullYear() + 1 } }}
+              label="License plate"
+              value={form.license_plate}
+              onChange={(event) => set('license_plate', event.target.value)}
+              error={Boolean(fieldErrors.license_plate) || plateConflict}
+              helperText={
+                plateConflict
+                  ? 'An active vehicle already uses this plate.'
+                  : helper(
+                      'license_plate',
+                      'Only one active vehicle may hold a plate; retired plates can be reused.',
+                    )
+              }
               fullWidth
               required
             />
-            <TextField
-              select
-              label="Office"
-              value={form.office}
-              onChange={(event) => set('office', event.target.value)}
-              error={Boolean(fieldErrors.office)}
-              helperText={helper('office')}
-              fullWidth
-              required
-            >
-              {/* The edit form is seeded with the vehicle's office id, which may
+
+            <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
+              <TextField
+                label="Make"
+                value={form.make}
+                onChange={(event) => set('make', event.target.value)}
+                error={Boolean(fieldErrors.make)}
+                helperText={helper('make')}
+                fullWidth
+                required
+              />
+              <TextField
+                label="Model"
+                value={form.model}
+                onChange={(event) => set('model', event.target.value)}
+                error={Boolean(fieldErrors.model)}
+                helperText={helper('model')}
+                fullWidth
+                required
+              />
+            </Stack>
+
+            <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
+              <TextField
+                label="Year"
+                type="number"
+                value={form.year}
+                onChange={(event) => set('year', event.target.value)}
+                error={Boolean(fieldErrors.year)}
+                helperText={helper('year')}
+                slotProps={{ htmlInput: { min: 1900, max: new Date().getFullYear() + 1 } }}
+                fullWidth
+                required
+              />
+              <TextField
+                select
+                label="Office"
+                value={form.office}
+                onChange={(event) => set('office', event.target.value)}
+                error={Boolean(fieldErrors.office)}
+                helperText={helper('office')}
+                fullWidth
+                required
+              >
+                {/* The edit form is seeded with the vehicle's office id, which may
                   not be in this list yet if the offices query is still in
                   flight. A stand-in keeps the Select's value valid rather than
                   rendering blank and warning. */}
-              {officeOptions.map((option) => (
-                <MenuItem key={option.value} value={option.value}>
-                  {option.label}
-                </MenuItem>
-              ))}
-            </TextField>
-          </Stack>
+                {officeOptions.map((option) => (
+                  <MenuItem key={option.value} value={option.value}>
+                    {option.label}
+                  </MenuItem>
+                ))}
+              </TextField>
+            </Stack>
 
-          <FormControlLabel
-            control={
-              <Switch
-                checked={form.active}
-                onChange={(event) => set('active', event.target.checked)}
-              />
-            }
-            label={form.active ? 'Active - in service' : 'Inactive - retired'}
-          />
-        </Stack>
-      </DialogContent>
-      <DialogActions>
-        <Button onClick={onClose} disabled={save.isPending}>
-          Cancel
-        </Button>
-        <Button variant="contained" onClick={handleSubmit} disabled={!canSubmit}>
-          {save.isPending ? 'Saving…' : isEdit ? 'Save changes' : 'Add vehicle'}
-        </Button>
-      </DialogActions>
-    </Dialog>
+            <FormControlLabel
+              control={
+                <Switch
+                  checked={form.active}
+                  onChange={(event) => set('active', event.target.checked)}
+                />
+              }
+              label={form.active ? 'Active - in service' : 'Inactive - retired'}
+            />
+          </Stack>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={guard.requestClose} disabled={save.isPending}>
+            Cancel
+          </Button>
+          <Button variant="contained" onClick={handleSubmit} disabled={!canSubmit}>
+            {save.isPending ? 'Saving…' : isEdit ? 'Save changes' : 'Add vehicle'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+      <ConfirmDialog
+        open={guard.confirming}
+        title="Discard changes?"
+        message="This form has unsaved changes. Closing it will lose them."
+        confirmLabel="Discard"
+        onConfirm={guard.confirmDiscard}
+        onClose={guard.keepEditing}
+      />
+    </>
   );
 }
