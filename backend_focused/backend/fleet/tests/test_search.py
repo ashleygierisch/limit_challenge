@@ -2,7 +2,7 @@
 
 from django.urls import reverse
 from rest_framework import status
-from rest_framework.test import APITestCase
+from fleet.tests.base import AuthenticatedAPITestCase
 
 from fleet.tests.factories import (
     days_ago,
@@ -14,10 +14,11 @@ from fleet.tests.factories import (
 )
 
 
-class VehicleSearchTests(APITestCase):
+class VehicleSearchTests(AuthenticatedAPITestCase):
     url = reverse('vehicle-list')
 
     def setUp(self):
+        super().setUp()
         self.north = make_office(name='North', city='Leeds')
         self.south = make_office(name='South', city='Brighton')
         self.certified = make_mechanic(certification_number='CERT-AAA')
@@ -154,10 +155,11 @@ class VehicleSearchTests(APITestCase):
         self.assertIn('maintained_to', response.json())
 
 
-class DuplicateCheckTests(APITestCase):
+class DuplicateCheckTests(AuthenticatedAPITestCase):
     url = reverse('vehicle-check-duplicate')
 
     def setUp(self):
+        super().setUp()
         self.office = make_office()
         self.existing = make_vehicle(
             office=self.office, vin='KNOWNVIN000000001',

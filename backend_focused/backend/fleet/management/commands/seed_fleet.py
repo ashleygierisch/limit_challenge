@@ -10,6 +10,7 @@ import random
 from datetime import timedelta
 from decimal import Decimal
 
+from django.contrib.auth.models import User
 from django.core.management.base import BaseCommand
 from django.db import transaction
 from django.utils import timezone
@@ -26,6 +27,11 @@ MAKES = {
 }
 
 MAINTENANCE_TYPES = [choice[0] for choice in MaintenanceRecord.MaintenanceType.choices]
+
+# Development credentials, printed by the command. Fine for a local SQLite
+# database seeded with fake data; a real deployment would not ship a default.
+DEMO_USERNAME = 'demo'
+DEMO_PASSWORD = 'demo12345'
 
 # Rough cost band per maintenance type, in dollars.
 COST_RANGES = {
@@ -91,6 +97,7 @@ class Command(BaseCommand):
 
         today = timezone.localdate()
 
+        self._create_demo_user()
         offices = self._create_offices(fake, options['offices'])
         mechanics = self._create_mechanics(fake, options['mechanics'])
         vehicles = self._create_vehicles(fake, options['vehicles'], offices)
@@ -109,6 +116,20 @@ class Command(BaseCommand):
         MaintenanceRecord.objects.bulk_create(records, batch_size=1000)
 
         self._report(offices, mechanics, records, notes)
+
+    def _create_demo_user(self):
+        """Ensure a login exists, since the API rejects anonymous requests.
+
+        Seeded data is useless if nothing can read it, so the command that
+        creates the data also creates the account that can reach it.
+        """
+        user, created = User.objects.get_or_create(
+            username=DEMO_USERNAME,
+            defaults={'is_staff': True, 'is_superuser': True},
+        )
+        if created:
+            user.set_password(DEMO_PASSWORD)
+            user.save(update_fields=['password'])
 
     # -- bulk data ---------------------------------------------------------
 
@@ -310,6 +331,13 @@ class Command(BaseCommand):
                 f'Seeded {len(offices)} offices, {len(mechanics)} mechanics, '
                 f'{Vehicle.objects.count()} vehicles and {len(records)} '
                 f'maintenance records.'
+            )
+        )
+        self.stdout.write('')
+        self.stdout.write(
+            self.style.SUCCESS(
+                'The API rejects anonymous requests. Sign in with '
+                f'{DEMO_USERNAME} / {DEMO_PASSWORD}'
             )
         )
         self.stdout.write('\nPlanted edge cases:')

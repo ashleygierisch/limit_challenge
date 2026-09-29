@@ -7,7 +7,7 @@ assert against the full result set rather than one page.
 
 from django.urls import reverse
 from rest_framework import status
-from rest_framework.test import APITestCase
+from fleet.tests.base import AuthenticatedAPITestCase
 
 from fleet.tests.factories import (
     days_ago,
@@ -18,10 +18,11 @@ from fleet.tests.factories import (
 )
 
 
-class VehicleOrderingTests(APITestCase):
+class VehicleOrderingTests(AuthenticatedAPITestCase):
     url = reverse('vehicle-list')
 
     def setUp(self):
+        super().setUp()
         self.north = make_office(name='Alpha Office', city='A')
         self.south = make_office(name='Zulu Office', city='Z')
 
@@ -92,7 +93,7 @@ class VehicleOrderingTests(APITestCase):
         self.assertEqual(3, len(self.column('?ordering=active')))
 
 
-class OrderingStabilityTests(APITestCase):
+class OrderingStabilityTests(AuthenticatedAPITestCase):
     """A tie must not let a row appear on two pages, or on none."""
 
     url = reverse('vehicle-list')
@@ -122,10 +123,11 @@ class OrderingStabilityTests(APITestCase):
         self.assertEqual(25, len(set(collected)), 'a row was duplicated across pages')
 
 
-class OverdueOrderingTests(APITestCase):
+class OverdueOrderingTests(AuthenticatedAPITestCase):
     url = reverse('vehicle-needing-maintenance')
 
     def setUp(self):
+        super().setUp()
         self.office = make_office()
         self.never = make_vehicle(office=self.office, license_plate='NEVER')
         self.older = make_vehicle(office=self.office, license_plate='OLDER')

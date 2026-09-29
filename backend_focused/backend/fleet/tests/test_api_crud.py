@@ -4,7 +4,7 @@ from decimal import Decimal
 
 from django.urls import reverse
 from rest_framework import status
-from rest_framework.test import APITestCase
+from fleet.tests.base import AuthenticatedAPITestCase
 
 from fleet.models import MaintenanceRecord, Mechanic, Office, Vehicle
 from fleet.tests.factories import (
@@ -18,7 +18,7 @@ from fleet.tests.factories import (
 )
 
 
-class OfficeCrudTests(APITestCase):
+class OfficeCrudTests(AuthenticatedAPITestCase):
     def test_full_lifecycle(self):
         create = self.client.post(
             reverse('office-list'),
@@ -133,7 +133,7 @@ class OfficeCrudTests(APITestCase):
         self.assertTrue(Office.objects.filter(pk=office.pk).exists())
 
 
-class MechanicCrudTests(APITestCase):
+class MechanicCrudTests(AuthenticatedAPITestCase):
     def test_create_and_list(self):
         response = self.client.post(
             reverse('mechanic-list'),
@@ -166,8 +166,9 @@ class MechanicCrudTests(APITestCase):
         self.assertTrue(Mechanic.objects.filter(pk=mechanic.pk).exists())
 
 
-class VehicleCrudTests(APITestCase):
+class VehicleCrudTests(AuthenticatedAPITestCase):
     def setUp(self):
+        super().setUp()
         self.office = make_office()
 
     def payload(self, **overrides):
@@ -326,8 +327,9 @@ class VehicleCrudTests(APITestCase):
         self.assertEqual(status.HTTP_404_NOT_FOUND, response.status_code)
 
 
-class AssignVehicleTests(APITestCase):
+class AssignVehicleTests(AuthenticatedAPITestCase):
     def setUp(self):
+        super().setUp()
         self.origin = make_office(name='Origin', city='A')
         self.destination = make_office(name='Destination', city='B')
         self.vehicle = make_vehicle(office=self.origin)
@@ -404,8 +406,9 @@ class AssignVehicleTests(APITestCase):
         self.assertEqual(status.HTTP_404_NOT_FOUND, response.status_code)
 
 
-class MaintenanceRecordCrudTests(APITestCase):
+class MaintenanceRecordCrudTests(AuthenticatedAPITestCase):
     def setUp(self):
+        super().setUp()
         self.vehicle = make_vehicle()
         self.mechanic = make_mechanic()
 

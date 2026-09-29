@@ -11,7 +11,7 @@ from decimal import Decimal
 
 from django.urls import reverse
 from rest_framework import status
-from rest_framework.test import APITestCase
+from fleet.tests.base import AuthenticatedAPITestCase
 
 from fleet.tests.factories import (
     days_ago,
@@ -24,7 +24,7 @@ from fleet.tests.factories import (
 )
 
 
-class OfficeSummaryTests(APITestCase):
+class OfficeSummaryTests(AuthenticatedAPITestCase):
     url = reverse('office-summary')
 
     def test_aggregates_do_not_multiply_across_joins(self):
@@ -120,7 +120,7 @@ class OfficeSummaryTests(APITestCase):
                          Decimal(rows['Beta']['maintenance_cost_last_year']))
 
 
-class MechanicWorkloadTests(APITestCase):
+class MechanicWorkloadTests(AuthenticatedAPITestCase):
     url = reverse('mechanic-workload')
 
     def test_counts_only_the_current_calendar_year(self):
@@ -168,7 +168,7 @@ class MechanicWorkloadTests(APITestCase):
         self.assertEqual(Decimal('0.00'), Decimal(row['cost_this_year']))
 
 
-class VehiclesNeedingMaintenanceTests(APITestCase):
+class VehiclesNeedingMaintenanceTests(AuthenticatedAPITestCase):
     url = reverse('vehicle-needing-maintenance')
 
     def test_never_serviced_vehicles_come_first(self):
@@ -221,7 +221,7 @@ class VehiclesNeedingMaintenanceTests(APITestCase):
         self.assertEqual(400, row['days_since_maintenance'])
 
 
-class VehicleHistoryTests(APITestCase):
+class VehicleHistoryTests(AuthenticatedAPITestCase):
     def test_history_is_newest_first(self):
         vehicle = make_vehicle()
         for age in [10, 300, 100]:

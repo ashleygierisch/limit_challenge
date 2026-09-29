@@ -4,7 +4,7 @@ A Django REST Framework API for managing a fleet of vehicles, the offices they
 are assigned to, the mechanics who service them, and their maintenance history.
 
 - **Stack:** Python 3.13, Django 5.2, Django REST Framework 3.17, SQLite.
-- **No extra dependencies** beyond the ones the scaffold shipped with.
+- **One added dependency:** `djangorestframework-simplejwt` for the JWT bonus.
 - **92 tests**, all passing.
 
 ---
@@ -79,6 +79,24 @@ built around, so they can be exercised by hand immediately:
 The command prints a summary of what it planted.
 
 ---
+
+## Authentication
+
+Every endpoint below requires a bearer token; `seed_fleet` creates `demo` /
+`demo12345`. `DEFAULT_PERMISSION_CLASSES` is `IsAuthenticated`, so a new
+endpoint is protected unless it opts out — the safer default than protecting
+each one by hand and forgetting one.
+
+| Method | Path | Notes |
+| --- | --- | --- |
+| `POST` | `/auth/login/` | returns `access` and `refresh` |
+| `POST` | `/auth/refresh/` | rotates the refresh token and blacklists the old one |
+| `POST` | `/auth/logout/` | blacklists the refresh token; 205 |
+| `GET` | `/auth/me/` | the token holder |
+
+Tests sign in with `force_authenticate` rather than a real token, because
+decoding one costs a user lookup that would inflate every count in
+`test_performance`. The token path is covered separately in `test_auth`.
 
 ## API reference
 

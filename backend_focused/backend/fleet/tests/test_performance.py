@@ -10,8 +10,9 @@ against is N+1: query *count* scaling with row count. Each test therefore
 proves the count is the same for a small and a large dataset.
 """
 
-from django.test import TestCase
 from django.urls import reverse
+
+from fleet.tests.base import AuthenticatedAPITestCase
 
 from fleet import queries
 from fleet.tests.factories import (
@@ -26,7 +27,7 @@ from fleet.tests.factories import (
 PAGINATED_QUERIES = 2
 
 
-class VehicleDetailQueryCountTests(TestCase):
+class VehicleDetailQueryCountTests(AuthenticatedAPITestCase):
     """Vehicle detail: fixed cost regardless of history length."""
 
     EXPECTED_QUERIES = 2  # vehicle + aggregates, then the prefetched history.
@@ -75,7 +76,7 @@ class VehicleDetailQueryCountTests(TestCase):
             self.client.get(reverse('vehicle-history', args=[vehicle.pk]) + '?page=1')
 
 
-class ReportQueryCountTests(TestCase):
+class ReportQueryCountTests(AuthenticatedAPITestCase):
     """The aggregate reports are single-query regardless of row count."""
 
     def _populate(self, offices, vehicles_per_office, records_per_vehicle):
@@ -126,7 +127,7 @@ class ReportQueryCountTests(TestCase):
             self.client.get(reverse('vehicle-needing-maintenance'))
 
 
-class ListQueryCountTests(TestCase):
+class ListQueryCountTests(AuthenticatedAPITestCase):
     """List endpoints must not issue a query per row for nested data."""
 
     def test_vehicle_list_does_not_query_per_row(self):
@@ -166,7 +167,7 @@ class ListQueryCountTests(TestCase):
             self.client.get(url)
 
 
-class QuerysetShapeTests(TestCase):
+class QuerysetShapeTests(AuthenticatedAPITestCase):
     """Guards on the queryset builders themselves, independent of the views."""
 
     def test_office_summary_subqueries_are_not_grouped_by_ordering(self):

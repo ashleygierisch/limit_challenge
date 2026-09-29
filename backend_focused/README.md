@@ -8,14 +8,15 @@ The original brief is preserved as [Require.md](Require.md).
 
 | | |
 | --- | --- |
-| **Backend** | Python 3.13, Django 5.2, DRF 3.17, SQLite - no dependencies beyond the scaffold's |
+| **Backend** | Python 3.13, Django 5.2, DRF 3.17, SQLite, SimpleJWT |
 | **Frontend** | Next.js 16, React 19, MUI 7 (+ X Date Pickers, Icons), TanStack Query 5, axios, dayjs |
-| **Tests** | 118, all passing |
+| **Tests** | 132, all passing |
 | **Detailed backend notes** | [`backend/README.md`](backend/README.md) - API reference, performance analysis, tradeoffs |
 
 All nine required endpoint groups are implemented, plus a front end covering the
 CRUD endpoints, vehicle search, and *vehicles needing maintenance* as the chosen
-extra.
+extra. JWT authentication is included as the optional bonus: **every fleet
+endpoint requires a token**, and the front end has a sign-in screen.
 
 ---
 
@@ -31,7 +32,7 @@ python -m venv .venv
 source .venv/bin/activate          # Windows: .venv\Scripts\activate
 pip install -r requirements.txt
 python manage.py migrate
-python manage.py seed_fleet        # dummy data - see below
+python manage.py seed_fleet        # dummy data, and the demo login - see below
 python manage.py runserver 0.0.0.0:8000
 ```
 
@@ -107,6 +108,50 @@ frontend/
 
 Query construction lives in `queries.py` rather than in the views, so the query
 shape - the part that has to stay fast - is in one place and testable on its own.
+
+---
+
+## Authentication
+
+The API is JWT-authenticated and **rejects anonymous requests**, so sign in
+before anything else. `seed_fleet` creates the account and prints it:
+
+| | |
+| --- | --- |
+| username | `demo` |
+| password | `demo12345` |
+
+The front end shows a sign-in screen and handles the rest. To use the API
+directly:
+
+```bash
+# 1. sign in
+curl -s -X POST localhost:8000/api/auth/login/ \
+  -H 'Content-Type: application/json' \
+  -d '{"username":"demo","password":"demo12345"}'
+
+# 2. use the access token it returns
+curl -s localhost:8000/api/vehicles/ -H "Authorization: Bearer <access>"
+```
+
+| Route | Purpose |
+| --- | --- |
+| `POST /api/auth/login/` | username + password, returns an access/refresh pair |
+| `POST /api/auth/refresh/` | renews the access token, rotating the refresh token |
+| `POST /api/auth/logout/` | blacklists the refresh token server-side |
+| `GET /api/auth/me/` | who the presented token belongs to |
+
+Access tokens last 15 minutes and refresh tokens a day. Refresh tokens rotate
+and the old one is blacklisted on use, so a leaked one stops working as soon as
+the real client refreshes. The front end refreshes on a 401 and retries the
+request once, sharing a single refresh between concurrent requests — rotating
+several at once would blacklist the token the others are still using and sign
+the user out mid-session.
+
+**Trade-off:** tokens are kept in `localStorage`, which any script on the
+origin can read, so an XSS bug would expose them. An httpOnly refresh cookie is
+the safer arrangement but needs cookie and CSRF handling on the API; the short
+access-token lifetime and refresh rotation are the mitigation here.
 
 ---
 

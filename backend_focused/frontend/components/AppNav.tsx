@@ -1,8 +1,22 @@
 'use client';
 
-import { AppBar, Box, Container, Tab, Tabs, Toolbar, Typography } from '@mui/material';
+import {
+  AppBar,
+  Box,
+  Button,
+  Container,
+  Stack,
+  Tab,
+  Tabs,
+  Toolbar,
+  Tooltip,
+  Typography,
+} from '@mui/material';
+import LogoutIcon from '@mui/icons-material/Logout';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+
+import { useAuth } from './AuthProvider';
 
 const TABS = [
   { href: '/', label: 'Vehicles' },
@@ -13,6 +27,7 @@ const TABS = [
 
 export function AppNav() {
   const pathname = usePathname();
+  const { user, signOut } = useAuth();
   // Longest matching prefix, so a nested route still highlights its section.
   const current =
     TABS.map((tab) => tab.href)
@@ -31,7 +46,7 @@ export function AppNav() {
           <Typography variant="h6" component="h1" sx={{ fontWeight: 600, whiteSpace: 'nowrap' }}>
             Fleet Tracker
           </Typography>
-          <Box sx={{ overflowX: 'auto' }}>
+          <Box sx={{ overflowX: 'auto', flexGrow: 1 }}>
             <Tabs value={current} variant="scrollable" scrollButtons={false}>
               {TABS.map((tab) => (
                 <Tab
@@ -45,6 +60,26 @@ export function AppNav() {
               ))}
             </Tabs>
           </Box>
+          <Stack direction="row" alignItems="center" gap={1} sx={{ flexShrink: 0 }}>
+            <Typography
+              variant="body2"
+              color="text.secondary"
+              sx={{ display: { xs: 'none', sm: 'block' } }}
+            >
+              {user.username}
+            </Typography>
+            <Tooltip title="Sign out">
+              <Button
+                size="small"
+                color="inherit"
+                startIcon={<LogoutIcon fontSize="small" />}
+                onClick={() => signOut()}
+                sx={{ textTransform: 'none', whiteSpace: 'nowrap' }}
+              >
+                Sign out
+              </Button>
+            </Tooltip>
+          </Stack>
         </Toolbar>
       </Container>
     </AppBar>
